@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#0f141d">
+<title>Minhas Contas</title>
+<style>
+:root{color-scheme:dark;--bg:#0f141d;--panel:#192230;--line:#2b3748;--text:#f3f6fb;--muted:#a6b2c3;--accent:#72d6b0;--danger:#ff9b9b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,sans-serif;padding:22px 16px 36px}
+main{max-width:560px;margin:auto}.eyebrow{font-size:12px;letter-spacing:1.5px;color:var(--muted)}h1{font-size:28px;margin:5px 0 20px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:17px;margin-bottom:14px}
+.label{color:var(--muted);font-size:13px}.big{font-size:32px;font-weight:800;margin:4px 0 16px;letter-spacing:-1px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#111923;border-radius:12px;padding:12px;min-width:0}.stat strong{display:block;font-size:18px;margin-top:5px;overflow-wrap:anywhere}
+.progressrow{display:flex;justify-content:space-between;margin:16px 0 8px;font-size:13px}.track{height:7px;background:var(--line);border-radius:9px;overflow:hidden}.fill{height:100%;background:var(--accent);width:0;transition:width .2s}
+.heading{font-size:18px;font-weight:750;margin:0 0 5px}.bill{display:flex;gap:10px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}.bill:last-child{border-bottom:0}.check{width:22px;height:22px;accent-color:var(--accent);flex-shrink:0}.billname{font-weight:650;overflow-wrap:anywhere}.sub{font-size:12px;color:var(--muted);margin-top:3px}.done .billname{text-decoration:line-through;opacity:.6}.value{font-weight:750;white-space:nowrap}.delete{display:block;border:0;background:none;color:var(--muted);padding:5px 0 0 auto;font-size:12px;text-align:right}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px}input[type=text],input[type=number]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#111923;color:var(--text);font:inherit}.btn{width:100%;border:0;border-radius:11px;padding:13px;font:inherit;font-weight:750;background:var(--accent);color:#10251e;margin-top:14px}.btn.secondary{background:transparent;color:var(--text);border:1px solid var(--line);margin-top:0}.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.note{font-size:12px;color:var(--muted);text-align:center;line-height:1.5;margin-top:18px}button{cursor:pointer}
+</style>
+</head>
+<body><main>
+<div class="eyebrow">CONTROLE FINANCEIRO</div><h1>Minhas contas</h1>
+<section class="panel">
+<div class="label">Total de todas as contas</div><div class="big" id="total">R$ 913,00</div>
+<div class="stats"><div class="stat"><div class="label">Em aberto</div><strong id="remaining">R$ 913,00</strong></div><div class="stat"><div class="label">Já paguei</div><strong id="paid">R$ 0,00</strong></div></div>
+<div class="progressrow"><span class="label">Progresso dos pagamentos</span><strong id="pct">0%</strong></div><div class="track"><div class="fill" id="fill"></div></div>
+</section>
+<section class="panel"><div class="heading">Lista de contas</div><div id="list"></div><div id="empty" class="label" hidden>Nenhuma conta cadastrada.</div></section>
+<section class="panel"><div class="heading">Adicionar uma conta</div><form id="form"><label for="name">Nome da conta</label><input id="name" type="text" maxlength="80" placeholder="Ex.: Energia elétrica" required><label for="amount">Valor em reais (R$)</label><input id="amount" type="number" min=".01" step=".01" placeholder="0,00" required><button class="btn" type="submit">+ Adicionar conta</button></form></section>
+<div class="actions"><button class="btn secondary" id="export">Exportar lista</button><button class="btn secondary" id="reset">Restaurar início</button></div>
+<div class="note" id="notice">Seus dados são guardados neste aparelho. Marque a caixa quando pagar uma conta.</div>
+</main>
+<script>
+(()=> {
+const initial=[
+{id:1,name:"Pagamento do celular",value:320,paid:false},
+{id:2,name:"Mãe",value:250,paid:false},
+{id:3,name:"Cartão Nubank",value:96,paid:false},
+{id:4,name:"Conta da internet",value:77,paid:false},
+{id:5,name:"Lanches do Banana",value:170,paid:false}
+];
+const key="minhas-contas-v1";let bills;let nextId=6;
+try {const saved=localStorage.getItem(key);bills=saved?JSON.parse(saved):initial.map(x=>({...x}));if(!Array.isArray(bills))throw Error();nextId=Math.max(6,...bills.map(b=>Number(b.id)||0))+1;}catch(e){bills=initial.map(x=>({...x}));}
+const $=id=>document.getElementById(id);
+const fmt=n=>Number(n).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function save(){try{localStorage.setItem(key,JSON.stringify(bills));}catch(e){$("notice").textContent="Não foi possível salvar os dados neste aparelho.";}}
+function render(){
+const total=bills.reduce((s,b)=>s+Number(b.value),0),paid=bills.reduce((s,b)=>s+(b.paid?Number(b.value):0),0),pct=total?Math.round(paid/total*100):0;
+$("total").textContent=fmt(total);$("remaining").textContent=fmt(total-paid);$("paid").textContent=fmt(paid);$("pct").textContent=pct+"%";$("fill").style.width=pct+"%";
+$("empty").hidden=bills.length!==0;
+$("list").innerHTML=bills.map(b=>`<div class="bill ${b.paid?"done":""}"><input class="check" type="checkbox" data-paid="${b.id}" aria-label="Marcar como paga" ${b.paid?"checked":""}><div style="flex:1;min-width:0"><div class="billname">${esc(b.name)}</div><div class="sub">${b.paid?"Paga":"Pendente"}</div></div><div><div class="value">${fmt(b.value)}</div><button class="delete" data-del="${b.id}">Excluir</button></div></div>`).join("");
+}
+$("list").addEventListener("change",e=>{if(!e.target.dataset.paid)return;const b=bills.find(x=>x.id===Number(e.target.dataset.paid));if(b){b.paid=e.target.checked;save();render();}});
+$("list").addEventListener("click",e=>{const btn=e.target.closest("[data-del]");if(!btn)return;const b=bills.find(x=>x.id===Number(btn.dataset.del));if(b&&confirm("Excluir a conta '"+b.name+"'?")){bills=bills.filter(x=>x.id!==b.id);save();render();$("notice").textContent="Conta excluída."; }});
+$("form").addEventListener("submit",e=>{e.preventDefault();const name=$("name").value.trim(),value=Math.round(Number($("amount").value)*100)/100;if(!name||!Number.isFinite(value)||value<=0)return;bills.push({id:nextId++,name,value,paid:false});save();render();e.target.reset();$("notice").textContent="Conta adicionada e salva neste aparelho.";});
+$("reset").addEventListener("click",()=>{if(confirm("Restaurar as cinco contas iniciais? Suas alterações atuais serão substituídas.")){bills=initial.map(x=>({...x}));nextId=6;save();render();$("notice").textContent="Lista inicial restaurada."; }});
+$("export").addEventListener("click",()=>{const rows=[["Conta","Valor","Status"],...bills.map(b=>[b.name,Number(b.value).toFixed(2).replace(".",","),b.paid?"Paga":"Pendente"]),[],["Total",bills.reduce((s,b)=>s+Number(b.value),0).toFixed(2).replace(".",",")],["Pago",bills.reduce((s,b)=>s+(b.paid?Number(b.value):0),0).toFixed(2).replace(".",",")]];const csv="\ufeff"+rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(";")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="minhas-contas.csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);});
+render();
+})();
+</script></body></html>
